@@ -1,0 +1,79 @@
+
+- name: Проверка установлен ли клиент FreeIPA
+  command: 'ipa --version'
+  register: ipa_client_status
+  ignore_errors: yes
+  changed_when: false  # Эта задача не вносит изменений
+
+- name: Add multiple entries with lineinfile
+  block:
+    - name: Add IPA server entry
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '10.10.10.14 ipasrv.itteam.local ipasrv'
+        state: present
+
+    - name: Add current host entry
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ ipa_domain }} {{ ansible_hostname }}'
+        state: present
+  tags: file_hosts
+
+- name: Установка корректного FQDN
+  ansible.builtin.hostname:
+    name: "{{ ansible_hostname }}.{{ ipa_domain }}"
+
+- name: Настройка клиента FreeIPA
+  command: |
+    ipa-client-install \
+    --server={{ ipa_server }} \
+    --domain={{ ipa_domain }} \
+    --principal={{ ipa_admin_user }} \
+    --password={{ ipa_admin_password }} \
+    --mkhomedir \
+    --force-join \
+    --hostname={{ ansible_fqdn }} \
+    --ip-address={{ ansible_default_ipv4.address }} \
+    --unattended 
+  args:
+    creates: "/etc/ipa/default.conf"  # Не выполнять если уже установлен
+  register: ipa_client_install
+  #no_log: true
+
+- name: Create DNS A-record for host
+  community.general.ipa_dnsrecord:
+    ipa_host: "{{ ipa_server }}"
+    ipa_user: "{{ ipa_admin_user }}"
+    ipa_pass: "{{ ipa_admin_password }}"
+    zone_name: "{{ ipa_domain }}"
+    record_name: "{{ ansible_hostname }}"
+    record_type: "A"
+    record_value: "{{ ansible_default_ipv4.address }}"
+    state: present
+  when: ipa_client_install.rc == 0
+  register: dns_record_result
+  #ignore_errors: yes
+
+# - name: Create PTR record
+#   community.general.ipa_dnsrecord:
+#     ipa_host: "{{ ipa_server }}"
+#     ipa_user: "{{ ipa_admin_user }}"
+#     ipa_pass: "{{ ipa_admin_password }}"
+#     zone_name: "{{ ansible_default_ipv4.network | regex_replace('\\.0/24$', '.in-addr.arpa') }}"
+#     record_name: "{{ ansible_default_ipv4.address | regex_replace('^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$', '\\4.\\3.\\2') }}"
+#     record_type: "PTR"
+#     record_value: "{{ ansible_hostname }}.{{ ipa_domain }}."
+#     state: present
+#   when: ipa_client_install.rc == 0
+  
+
+- name: Проверка успешной установки клиента
+  debug:
+    msg: "FreeIPA client установлен успешно"
+  when: ipa_client_install.rc == 0
+
+- name: Сообщение об ошибке установки
+  debug:
+    msg: "Ошибка установки FreeIPA client"
+  when: ipa_client_install.rc != 0

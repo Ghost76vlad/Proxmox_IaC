@@ -1,0 +1,20 @@
+---
+- name: Показывает vault_token из переменной окружения ОС
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load encrypted variables
+      ansible.builtin.debug:
+        var: lookup ('env','VAULT_TOKEN')  # или просто `vault_token`, если `name` не указан
+#        var: env.vault_token
+#        msg: "Токен Hashocorp: {{vault_token}}"  # чтобы вывод не скрывался
+      no_log: false
+ 
+    - name: Load encrypted variables
+      ansible.builtin.debug:
+        msg: "Токен Hashocorp:  {{ lookup ('env','VAULT_TOKEN') }}"  # или просто `vault_token`, если `name` не указан
+#        msg: "Token  {{ env.VAULT_TOKEN }}"
+#        msg: "Токен Hashocorp: {{vault_token}}"  # чтобы вывод не скрывался
+#      no_log: false
+
+

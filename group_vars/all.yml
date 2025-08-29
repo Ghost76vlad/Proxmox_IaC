@@ -1,0 +1,46 @@
+---
+ipa_server: ipasrv
+#ipa_server_name: ipasrv
+ipa_domain: itteam.local
+ipa_realm: ITTEAM.LOCAL
+ipa_admin_user: '{{ vault_ipa_reg.data.data.data.ipa-login }}'
+ipa_admin_password: "{{ vault_ipa_reg.data.data.data.ipa-passwd }}"  # Пароль из ansible-vault
+ipa_root_password: "{{ vault_ipa_reg.data.data.data.ipa-root-passwd }}"
+ipa_mkhomedir: true
+ipa_ssh: true
+ipa_sudo: true
+
+proxmox_ip: "{{ vault_proxmox.data.data.data.api_host }}"
+proxmox_user: "{{ vault_proxmox.data.data.data.api_user }}"
+proxmox_secret: "{{ vault_proxmox.data.data.data.api_token_proxmox }}"
+proxmox_id: "{{ vault_proxmox.data.data.data.api_token_id }}"
+proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
+sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
+
+sshkey_work_pc: "{{ vault_sshkey.data.data.data.work_vm_key }}"
+remote_user: ansible
+
+vault_url: "https://10.10.10.22:8200"
+vault_ipa_path: infra/data/freeipa
+vault_token: "{{ lookup('env', 'VAULT_TOKEN') }}"
+vault_proxmox_path: proxmox/data/api
+vault_work_vm_ssh_key: "infra/data/ssh-key"
+
+
+template_debian: "debian12-11-template"
+template_ubuntu: ubuntu2404-template
+
+dns_ipa: 10.10.10.14
+dns_mikrotik: 10.10.10.1
+
+# VM create disk
+disk_type: scsi1
+disk_size: 200
+disk_storage: RESERV
+vm_name: default
+
+# Mount disk
+mount_point: /data
+vg_name: data_vg
+lv_name: data_lv
+fs_type: xfs

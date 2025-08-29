@@ -1,0 +1,99 @@
+---
+- name: Установка и настройка Zabbix Agent
+  hosts: ubuntu  # Указываем целевую группу хостов
+  become: yes  # Выполнять задачи с правами root
+  vars:
+    zabbix_server: "10.10.10.15"  # IP-адрес или доменное имя Zabbix Server
+    zabbix_agent_version: "7.0"     # Версия Zabbix Agent
+    zabbix_agent_port: 10050        # Порт Zabbix Agent
+
+  tasks:
+    - name: Скачивание RPM-пакета
+      ansible.builtin.get_url:
+        url: "https://repo.zabbix.com/zabbix/{{ zabbix_agent_version }}/rocky/{{ ansible_distribution_major_version }}/x86_64/zabbix-release-latest-7.0.el9.noarch.rpm"
+        dest: /tmp/package.rpm
+      when: ansible_os_family == "RedHat"
+
+    - name: Установка RPM-пакета
+      ansible.builtin.yum:
+        name: /tmp/package.rpm
+        state: present
+        disable_gpg_check: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Проверка установки пакета
+      ansible.builtin.stat:
+        path: /path/to/installed/file  # Укажите путь к файлу, который должен появиться после установки
+      register: package_installed
+      when: ansible_os_family == "RedHat"
+
+    - name: Удаление временного RPM-файла
+      ansible.builtin.file:
+        path: /tmp/package.rpm
+        state: absent
+      when: ansible_os_family == "RedHat"
+
+#    - name: Установка репозитория Zabbix (для Ubuntu)
+#      ansible.builtin.apt_repository:
+#        repo: "deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb "
+#        state: present
+#        filename: zabbix
+#        update_cache: yes
+#      when: ansible_os_family == "Debian"
+
+#    - name: Установка пакета с автоматическим подтверждением
+#      ansible.builtin.shell:
+#        cmd: "sudo wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb | dpkg -i"
+#        cmd: "cd /tmp && sudo dpkg -i zabbix-release_latest_7.0+ubuntu24.04_all.deb"
+#        update_cache: yes
+#      when: ansible_os_family == "Debian"
+
+
+    - name: Установка Zabbix Agent (для Rocky Linux/AlmaLinux)
+      ansible.builtin.yum:
+        name: zabbix-agent
+        state: present
+        disable_gpg_check: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Установка Zabbix Agent (для Ubuntu)
+      ansible.builtin.apt:
+        name: zabbix-agent
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Настройка Zabbix Agent
+      ansible.builtin.template:
+        src: zabbix_agentd.conf
+        dest: /etc/zabbix/zabbix_agentd.conf
+        owner: zabbix
+        group: zabbix
+        mode: '0644'
+      notify: Перезапуск Zabbix Agent
+
+    - name: Открытие порта для Zabbix Agent в firewalld (для Rocky Linux/AlmaLinux)
+      ansible.builtin.firewalld:
+        port: "{{ zabbix_agent_port }}/tcp"
+        permanent: yes
+        state: enabled
+      when: ansible_os_family == "RedHat"
+
+#    - name: Открытие порта для Zabbix Agent в ufw (для Ubuntu)
+#      ansible.builtin.ufw:
+#        rule: allow
+#        port: "{{ zabbix_agent_port }}"
+#        proto: tcp
+#      when: ansible_os_family == "Debian"
+
+    - name: Включение и запуск Zabbix Agent
+      ansible.builtin.service:
+        name: zabbix-agent
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Перезапуск Zabbix Agent
+      ansible.builtin.service:
+        name: zabbix-agent
+        state: restarted

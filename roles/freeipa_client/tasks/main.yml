@@ -1,0 +1,95 @@
+---
+- name: Проверка установлен ли клиент FreeIPA
+  command: 'ipa --version'
+  register: ipa_client_status
+  ignore_errors: yes
+  changed_when: false
+
+- name: Add multiple entries with lineinfile RedHat
+  block:
+    - name: Add IPA server in file hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ dns_ipa }} {{ ipa_server }}.{{ ipa_domain }} {{ ipa_server }}'
+        state: present
+
+    - name: Add current host 
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ ipa_domain }} {{ ansible_hostname }}'
+        state: present
+  tags: file_hosts
+  when: ansible_os_family == 'RedHat'
+
+- name: Add multiple entries with lineinfile Debian/Ubuntu
+  block:
+    - name: Add current host in template cloud-init ipa-srv
+      ansible.builtin.lineinfile:
+        path: /etc/cloud/templates/hosts.debian.tmpl
+        line: '{{ dns_ipa }} {{ ipa_server }}.{{ ipa_domain }} {{ ipa_server }}'
+        state: present
+
+    - name: Add current file host ipa-srv
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ dns_ipa }} {{ ipa_server }}.{{ ipa_domain }} {{ ipa_server }}'
+        state: present
+
+    - name: Add current file hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ ipa_domain }} {{ ansible_hostname }}'
+        state: present
+
+    - name: Add current host in template cloud-init
+      ansible.builtin.lineinfile:
+        path: /etc/cloud/templates/hosts.debian.tmpl
+        line: '{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ ipa_domain }} {{ ansible_hostname }}'
+        state: present
+  tags: file_hosts
+  when: ansible_os_family == 'Debian'
+
+- name: Установка корректного FQDN
+  ansible.builtin.hostname:
+    name: "{{ ansible_hostname }}.{{ ipa_domain }}"
+
+- name: Настройка клиента FreeIPA
+  command: |
+    ipa-client-install \
+    --server={{ ipa_server }}.{{ ipa_domain }} \
+    --domain={{ ipa_domain }} \
+    --principal={{ ipa_admin_user }} \
+    --password={{ ipa_admin_password }} \
+    --mkhomedir \
+    --force-join \
+    --hostname={{ ansible_hostname }}.{{ ipa_domain }} \
+    --ip-address={{ ansible_default_ipv4.address }} \
+    --unattended 
+  args:
+    creates: "/etc/ipa/default.conf"
+  register: ipa_client_install
+  #no_log: true
+
+- name: Create DNS A-record for host
+  community.general.ipa_dnsrecord:
+    ipa_host: "{{ ipa_server }}.{{ ipa_domain }}"
+    ipa_user: "{{ ipa_admin_user }}"
+    ipa_pass: "{{ ipa_admin_password }}"
+    zone_name: "{{ ipa_domain }}"
+    record_name: "{{ ansible_hostname }}"
+    record_type: "A"
+    record_value: "{{ ansible_default_ipv4.address }}"
+    state: present
+  when: ipa_client_install.rc == 0
+  register: dns_record_result
+  #ignore_errors: yes
+
+- name: Проверка успешной установки клиента
+  debug:
+    msg: "FreeIPA client установлен успешно для {{ ansible_hostname }} с IP {{ ansible_default_ipv4.address }}"
+  when: ipa_client_install.rc == 0
+
+- name: Сообщение об ошибке установки
+  debug:
+    msg: "Ошибка установки FreeIPA client для {{ ansible_hostname }} с IP {{ ansible_default_ipv4.address }}"
+  when: ipa_client_install.rc != 0

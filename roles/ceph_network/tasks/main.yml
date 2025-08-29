@@ -1,0 +1,43 @@
+---
+- name: Validate cluster_ip variable
+  fail:
+    msg: "cluster_ip must be defined and have same number of elements as vm_name"
+  when: 
+    - cluster_ip is not defined
+    - cluster_ip | length != vm_name | length
+
+- name: Create Ceph network interfaces in Proxmox
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item }}"
+    net:
+      net1: "virtio,bridge={{ ceph_bridge }},firewall=0"
+  loop: "{{ vm_name }}"
+
+- name: Configure Ceph network on all VMs
+  ansible.builtin.template:
+    src: '90-ceph-interface.yaml.j2'
+    dest: "/etc/netplan/90-ceph-interface.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  delegate_to: "{{ item.0 }}"
+  loop: "{{ vm_cluster_ips }}"
+  loop_control:
+    label: "{{ item.0 }} - {{ item.1 }}"
+  vars:
+    vm_ip: "{{ item.1 }}"
+    vm_interface: "{{ ceph_interface }}"
+    vm_netmask: "{{ ceph_netmask }}"
+
+- name: Apply network configuration on VMs
+  ansible.builtin.command:
+    cmd: netplan apply
+  delegate_to: "{{ item }}"
+  loop: "{{ vm_name }}"
+

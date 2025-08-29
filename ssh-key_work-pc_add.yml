@@ -1,0 +1,18 @@
+---
+- name: Add ssh-key for user ansible
+  hosts: ipa_clients
+  tasks:
+    - name: Read secret from Vault
+      community.hashi_vault.vault_read:
+        url: "{{ vault_url }}"  # URL Vault-сервера
+        token: "{{ lookup('env', 'VAULT_TOKEN') }}"  # Берём токен из переменной окружения
+        path: "{{ vault_work_vm_ssh_key }}"    # Путь к секрету (KV v2)
+        validate_certs: false  # Отключить проверку сертификата (небезопасно!)
+      register: vault_sshkey
+      tags: always
+
+    - name: Add SSH public key to remote host
+      ansible.posix.authorized_key:
+        user: "{{ remote_user }}"
+        state: present
+        key: "{{ sshkey_work_pc }}"

@@ -1,0 +1,10 @@
+network:
+  version: 2
+  ethernets:
+    {{ vm_interface }}:
+      addresses:
+        - {{ vm_ip }}/{{ vm_netmask }}
+      mtu: 9000
+      routes:
+        - to: {{ cluster_networks }}/{{ vm_netmask }}
+          via: {{ cluster_gateway }}

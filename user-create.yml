@@ -1,0 +1,31 @@
+---
+- hosts: all
+  become: yes
+  vars:
+   tuz_name: ceph  # ТУЗ в которую переключаются
+   tuz_comment: TT666
+   tuz_passwd: "$y$j9T$.XixcL/Wjm1qBmG8a/tyb1$fYJ5Tyi/Jm6xUjLl6lj1rPm7XT5iFXJ0yB/bKEycEB/"
+   puz_name: root        # ПУЗ/LDAP_УЗ_пользователя       
+   crq_comment: CRQ335081    # № работ
+
+  tasks:
+
+  - name: Add user {{tuz_name}}
+    user:
+      name: "{{tuz_name}}"
+      home: "/home/{{tuz_name}}"
+      password: "{{tuz_passwd}}"
+      comment: "{{tuz_comment}}"
+      shell: /bin/bash
+      state: present  
+    tags: add_users
+      
+  - name: Add_sudo_in_TUZ
+    ansible.builtin.lineinfile:  
+      path: "/etc/sudoers.d/{{tuz_name}}"
+      line: "{{ tuz_name }} ALL=({{ puz_name }}) NOPASSWD: ALL #{{crq_comment}} "
+      create: yes                           # Создает файл если его нет
+      validate: /usr/sbin/visudo -cf %s     # Проверяет корректность записи в файле
+    tags: sudo_users
+
+...

@@ -1,0 +1,40 @@
+---
+- name: Install IPA-client
+  hosts: ipa_clients
+  gather_facts: true
+  become: true
+  #strategy: free 
+
+  pre_tasks:
+    - name: Debug show ALL hosts
+      debug:
+        msg: "Processing host {{ inventory_hostname }}"
+
+
+  roles:
+    - { role: install_lib, tags: ['lib', 'always'] }
+    - { role: chronyd, tags: ['ntp', 'always'] }
+    - { role: dns, tags: ['dns', 'always'] }
+
+  tasks:
+    - name: Read secret from Vault
+      community.hashi_vault.vault_read:
+        url: "{{ vault_url }}" # URL Vault-сервера
+        token: "{{ vault_token }}"  # Берём токен из переменной окружения
+        path: "{{ vault_ipa_path }}"    # Путь к секрету (KV v2)
+        validate_certs: false  # Отключить проверку сертификата 
+      register: vault_ipa_reg
+      no_log: true
+      tags: always
+
+    - name: Set facts from Vault
+      ansible.builtin.set_fact:
+        ipa_admin_user: "{{ vault_ipa_reg.data.data.data.ipa_login }}"
+        ipa_admin_password: "{{ vault_ipa_reg.data.data.data.ipa_passwd }}"
+      no_log: true
+      tags: always
+     
+    - name: Include FreeIPA client role
+      import_role: 
+        name: freeipa_client 
+      tags: ['ipa', 'always']

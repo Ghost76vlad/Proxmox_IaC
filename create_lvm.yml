@@ -1,0 +1,89 @@
+---
+- name: Configure new disk with LVM
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Find new disks
+      ansible.builtin.setup:
+        gather_subset:
+          - devices
+          - min
+      register: hardware
+
+    - name: Get list of all disks
+      ansible.builtin.set_fact:
+        all_disks: "{{ ansible_devices.keys() | select('match', '^[sv]d[a-z]$|^nvme[0-9]+n[0-9]+$') | list }}"
+
+    - name: Get list of partitioned disks
+      ansible.builtin.set_fact:
+        partitioned_disks: "{{ ansible_mounts | map(attribute='device') | map('regex_replace', '(/dev/mapper/.*?-.*?)|(/dev/[sv]d[a-z][0-9]+)', '\\1\\2') | map('regex_replace', '(/dev/mapper/.*?-.*?)|(/dev/[sv]d[a-z])', '\\1\\2') | list }}"
+
+    - name: Find new unused disks
+      ansible.builtin.set_fact:
+        new_disks: "{{ all_disks | difference(partitioned_disks) }}"
+
+    - name: Filter out unwanted devices
+      ansible.builtin.set_fact:
+        filtered_new_disks: "{{ new_disks | reject('match', '^(loop|dm-|sr)') | list }}"
+
+    - name: Debug filtered new disks
+      ansible.builtin.debug:
+        var: filtered_new_disks
+
+    - name: Fail if no proper new disks found
+      ansible.builtin.fail:
+        msg: "No proper new disks found (after filtering)"
+      when: filtered_new_disks | length == 0
+
+    - name: Install parted
+      ansible.builtin.package:
+        name: parted
+        state: present
+
+    - name: Create partition on first new disk
+      community.general.parted:
+        device: "/dev/{{ filtered_new_disks[0] }}"
+        number: 1
+        state: present
+        part_type: primary
+        flags: [ lvm ]
+        part_end: "100%"
+
+    - name: Create physical volume
+      community.general.lvg:
+        vg: "{{ vg_name }}"
+        pvs: "/dev/{{ filtered_new_disks[0] }}1"
+        state: present
+
+    - name: Create logical volume
+      community.general.lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "100%VG"
+        state: present
+
+    - name: Create filesystem
+      ansible.builtin.filesystem:
+        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: "{{ fs_type }}"
+
+    - name: Create mount point
+      ansible.builtin.file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: '0755'
+
+    - name: Mount the volume
+      ansible.builtin.mount:
+        path: "{{ mount_point }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: "{{ fs_type }}"
+        state: mounted
+
+    - name: Add to fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/dev/{{ vg_name }}/{{ lv_name }} {{ mount_point }} {{ fs_type }} defaults 0 0"
+        state: present
+        create: yes

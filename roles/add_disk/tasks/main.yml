@@ -1,0 +1,21 @@
+- name: Add disks to all VMs
+  community.general.proxmox_disk:    
+    api_host: "{{ proxmox_ip }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item.0 }}"
+    disk: "{{ item.1 }}"
+    cache: writeback
+    discard: on
+    #create: forced
+    storage: "{{ disk_storage }}"
+    size: "{{ disk_size }}"
+    state: present
+  loop: "{{ vm_name | product(disk_type) | list }}"
+  when: 
+    - disk_type is defined
+    - vm_name is defined
+  loop_control:
+    label: "{{ item.0 }} - {{ item.1 }}"

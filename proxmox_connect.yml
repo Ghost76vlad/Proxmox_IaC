@@ -1,0 +1,40 @@
+---
+- name: Get secret from HashiCorp Vault and connect to Proxmox
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read secret from Vault
+      community.hashi_vault.vault_read:
+        url: "https://10.10.10.22:8200"  # URL Vault-сервера
+        token: "{{ lookup('env', 'VAULT_TOKEN') }}"  # Берём токен из переменной окружения
+        path: "proxmox/data/api"    # Путь к секрету (KV v2)
+        validate_certs: false  # Отключить проверку сертификата (небезопасно!)
+      register: vault_secret
+
+    - name: Debug vault secret (для отладки)
+      debug:
+        var: vault_secret.data.data.data.api_token_id 
+      when: false  # Отключено, можно включить для отладки
+
+    - name: Connect to Proxmox using API token
+      community.general.proxmox:
+        api_host: "10.10.10.10:8006"
+        node: "{{vault_secret.data.data.data.node}}"
+        api_user: "{{vault_secret.data.data.data.api_user}}"
+        api_password: "{{vault_secret.data.data.data.pass_proxmox}}"
+#        api_token_secret: "{{vault_secret.data.data.data.api_token_proxmox}}"
+        validate_certs: false  # Отключить проверку сертификата Proxmox
+#        clone: 900
+#        clone_type: full 
+#        ostemplate: disk_vm:base-900-disk-0
+#        hostname: elk2
+        vmid: 211
+        state: started 
+#        storage: disk_vm
+       
+      register: vm_status
+      no_log: false
+
+    - name: "Show VM status"
+      debug:
+         var: vm_status

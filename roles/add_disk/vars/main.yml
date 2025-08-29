@@ -1,0 +1,4 @@
+disk_type: scsi1
+disk_size: 10
+disk_storage: RESERV
+vm_name: default

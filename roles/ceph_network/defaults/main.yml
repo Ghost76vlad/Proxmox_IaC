@@ -1,0 +1,6 @@
+---
+ceph_bridge: "vmbr1"
+ceph_interface: "ens19"
+ceph_netmask: "24"
+cluster_networks: 192.168.90.0
+cluster_gateway: 192.168.90.10

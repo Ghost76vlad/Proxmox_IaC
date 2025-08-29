@@ -1,0 +1,84 @@
+---
+- name: Get secret from HashiCorp Vault and connect to Proxmox
+  hosts: localhost     
+  tasks:
+    - name: Read secret from Vault
+      community.hashi_vault.vault_read:
+        url: "{{ vault_url }}"  # URL Vault-сервера
+        token: "{{ lookup('env', 'VAULT_TOKEN') }}"  # Берём токен из переменной окружения
+        path: "{{ vault_proxmox_path }}"    # Путь к секрету (KV v2)
+        validate_certs: false  # Отключить проверку сертификата (небезопасно!)
+      register: vault_proxmox
+      tags: always
+
+
+    - name: Set facts from Vault
+      ansible.builtin.set_fact:
+        proxmox_ip: "{{ vault_proxmox.data.data.data.api_host }}"
+        proxmox_user: "{{ vault_proxmox.data.data.data.api_user }}"
+        proxmox_secret: "{{ vault_proxmox.data.data.data.api_token_proxmox }}"
+        proxmox_id: "{{ vault_proxmox.data.data.data.api_token_id }}"
+        proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
+        vm_passwd: "{{ vault_proxmox.data.data.data.ansible_passwd }}"
+        sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
+      no_log: true
+      tags: always
+
+    - name: Create VM role
+      import_role: 
+        name: create-vm 
+      tags: create-vm
+    
+    - name: Configure VM network settings
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_ip }}"
+        node: "{{ proxmox_node }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_id }}"
+        api_token_secret: "{{ proxmox_secret }}"
+        validate_certs: false
+        name: "{{ item.0 }}"
+        ipconfig:
+          ipconfig0: "ip={{ item.1 }}"
+        update: true
+      loop: "{{ vm_name | zip(vm_networks) | list }}"
+      tags: create-vm
+    
+    - name: Extract VM IP addresses from configuration
+      ansible.builtin.set_fact:
+        vm_ip_addresses: "{{ vm_name | zip(vm_networks) | map('last') | map('regex_replace', '(\\d+\\.\\d+\\.\\d+\\.\\d+).*', '\\1') | list }}"
+      tags: create-vm
+
+    - name: Debug VM IP addresses
+      ansible.builtin.debug:
+        var: vm_ip_addresses
+      register: vm_ips
+      tags: create-vm
+    
+    - name: Динамически добавляем хосты в инвентарь
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: "ipa_clients"
+      loop: "{{ vm_ip_addresses }}"
+      when: vm_ip_addresses is defined
+      tags: create-vm
+
+    - name: Ждем 90 секунд - ожидаем включения VM
+      ansible.builtin.pause:
+        seconds: 90
+      tags: create-vm
+
+    - name: Create VM role for disk addition
+      import_role: 
+        name: add_disk
+      vars:
+        vm_name: "{{ vm_name }}"  # Передаем переменную в роль
+      tags: add_disk
+
+- name: Install freeipa_client 
+  ansible.builtin.import_playbook: post_create_vm_ipa.yml
+  tags: create-vm
+
+- name: Add ssh-key for work-pc
+  ansible.builtin.import_playbook: ssh-key_work-pc_add.yml
+  tags: create-vm

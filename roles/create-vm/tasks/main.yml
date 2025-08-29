@@ -1,0 +1,53 @@
+---
+- name: Create VM to Proxmox
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false  # Отключить проверку сертификата Proxmox
+    clone: "{{ template_ubuntu }}"
+    newid: "{{ vm_id | default(omit) }}"  # <-- Параметр пропустится, если newid не задан
+    full: true
+    description: "{{ description | default(omit) }}"  # <-- Параметр пропустится, если description не задан
+    name: "{{ item.0 | default(omit) }}"
+    timeout: 300
+  loop: "{{ vm_name | zip(vm_networks) | list }}"
+  when: disk_type is defined
+
+- name: Update Cloud-init new VM
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item.0 }}"  # Убедитесь, что item.0 содержит правильное имя ВМ
+    cores: "{{ vm_core }}"
+    memory: "{{ vm_memory }}"
+    sshkeys: "{{ sshkey_ansible }}"
+    ciuser: "{{ vm_users }}"
+    cipassword: "{{ vm_passwd }}"
+    nameservers: 
+      - "{{ dns_ipa }}"
+      - "{{ dns_mikrotik }}"
+    ipconfig:
+      ipconfig0: 'ip={{ item.1 | default("vm_networks") }}'  # Убедитесь, что item.1 содержит правильный IP
+    update: true
+    onboot: true
+  loop: "{{ vm_name | zip(vm_networks) | list }}"
+  when: disk_type is defined
+
+- name: Start VM (только если были изменения)
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    name: "{{ item }}"
+    state: started
+  loop: "{{ vm_name }}"
+  when: disk_type is defined

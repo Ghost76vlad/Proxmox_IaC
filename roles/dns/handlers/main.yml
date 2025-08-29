@@ -1,0 +1,10 @@
+- name: dns_restart
+  service:
+    name: systemd-resolved
+    state: restarted
+
+  
+- name: reload_nmcli
+  service:
+    name: NetworkManager
+    state: restarted

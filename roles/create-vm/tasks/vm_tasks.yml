@@ -1,0 +1,51 @@
+---
+- name: Create VM from template
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    clone: "{{ template_debian }}"
+    newid: "{{ item.vm_id | default(omit) }}"
+    full: true
+    description: "{{ item.vm_description | default(omit) }}"
+    name: "{{ item.vm_name }}"
+    timeout: 300
+  register: vm_create
+  tags: create
+
+- name: Configure VM cloud-init
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item.vm_name }}"
+    cores: "{{ vm_core }}"
+    memory: "{{ vm_memory }}"
+    sshkeys: "{{ sshkey_ansible }}"
+    ciuser: "{{ ciuser | default(omit) }}"
+    cipassword: "{{ cipassword | default(omit) }}"
+    nameservers: 
+      - "{{ dns_ipa }}"
+      - "{{ dns_mikrotik }}"
+    ipconfig:
+      ipconfig0: "ip={{ item.vm_ip }}"
+    update: true
+  when: vm_create is changed or vm_create is success
+  tags: configure
+
+- name: Ensure VM is started
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    name: "{{ item.name }}"
+    state: started
+  tags: start

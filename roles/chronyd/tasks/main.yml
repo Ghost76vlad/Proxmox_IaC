@@ -1,0 +1,24 @@
+- name: Ensure chrony is installed
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Configure chrony NTP
+  ansible.builtin.copy:
+    src: file/chrony.conf
+    dest: "{{ chrony_config_path }}"
+    owner: root
+    group: root
+    mode: 0644
+    backup: yes
+  notify: restart_chrony
+
+- name: Установка временной зоны Europe/Moscow
+  ansible.builtin.timezone:
+    name: Europe/Moscow
+
+- name: Ensure chronyd is running
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+    enabled: yes

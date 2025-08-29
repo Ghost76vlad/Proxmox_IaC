@@ -1,0 +1,98 @@
+    # Обновление кеша пакетов
+- name: Update package cache (OS-specific)
+  block:
+    - name: Update APT cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Update DNF cache (RHEL/CentOS)
+      ansible.builtin.yum:
+        update_cache: yes
+      when: ansible_os_family == 'RedHat'
+
+- name: Ждем 90 секунд - ожидаем обновление VM
+  ansible.builtin.pause:
+    seconds: 90
+
+# Установка системных зависимостей
+- name: Install base system packages
+  block:
+    - name: Install family Debian/Ubuntu packages
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-hvac
+          - python3-venv
+          - gcc
+          - freeipa-client
+          - oddjob
+          - oddjob-mkhomedir
+          - sssd
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install RedHat packages
+      ansible.builtin.yum:
+        name:
+          - python3
+          - python3-pip
+          - gcc
+          - python3-devel
+          - openssl-devel
+          - freeipa-client
+          - oddjob
+          - oddjob-mkhomedir
+          - sssd
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+# Создание и настройка virtualenv
+- name: Create virtualenv directory
+  ansible.builtin.file:
+    path: /opt/venv_hvac
+    state: directory
+    mode: '0755'
+  when: ansible_os_family == 'RedHat'
+
+- name: Create Python virtualenv
+  ansible.builtin.pip:
+    name: virtualenv
+    executable: pip3
+    state: present
+  register: pip_install
+  changed_when: pip_install.changed
+  when: ansible_os_family == 'RedHat'
+
+- name: Initialize virtualenv
+  ansible.builtin.command: "python3 -m venv /opt/venv_hvac"
+  args:
+    creates: /opt/venv_hvac/bin/python
+  when: ansible_os_family == 'RedHat'
+
+# Установка Python-пакетов в virtualenv
+- name: Install Python packages in virtualenv
+  ansible.builtin.pip:
+    name:
+      - hvac
+      - requests
+    virtualenv: /opt/venv_hvac
+    virtualenv_python: python3
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+# Настройка окружения
+- name: Add virtualenv to system profile
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    line: 'PATH="/opt/venv_hvac/bin:{{ ansible_env.PATH }}"'
+    regexp: '^PATH='
+    state: present
+  when: ansible_os_family == 'RedHat'
+  notify: Update_environment
+
+- name: Update_environment
+  shell: source /etc/environment
+  when: ansible_os_family == 'RedHat'
