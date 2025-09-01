@@ -12,9 +12,9 @@
         update_cache: yes
       when: ansible_os_family == 'RedHat'
 
-- name: Ждем 90 секунд - ожидаем обновление VM
+- name: Ждем 120 секунд - ожидаем обновление VM
   ansible.builtin.pause:
-    seconds: 90
+    seconds: 120
 
 # Установка системных зависимостей
 - name: Install base system packages

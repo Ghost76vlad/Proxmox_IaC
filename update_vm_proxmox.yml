@@ -1,0 +1,36 @@
+---
+- name: Get secret from HashiCorp Vault and connect to Proxmox
+  hosts: localhost     
+  tasks:
+    - name: Read secret from Vault
+      community.hashi_vault.vault_read:
+        url: "{{ vault_url }}"  # URL Vault-сервера
+        token: "{{ lookup('env', 'VAULT_TOKEN') }}"  # Берём токен из переменной окружения
+        path: "{{ vault_proxmox_path }}"    # Путь к секрету (KV v2)
+        validate_certs: false  # Отключить проверку сертификата (небезопасно!)
+      register: vault_secret
+
+    # - name: Debug vault secret (для отладки)
+    #   ansible.builtin.debug:
+    #     var: vault_secret.data.data.data.api_token_id
+    #   when: false  # Отключено, можно включить для отладки
+    - name: Ubdate new VM
+      community.general.proxmox_kvm:
+        api_host: 1
+        
+        node: "{{ vault_secret.data.data.data.node }}"
+        api_user: "{{ vault_secret.data.data.data.api_user }}"
+        api_token_id: "{{ vault_secret.data.data.data.api_token_id }}"
+        api_token_secret: "{{ vault_secret.data.data.data.api_token_proxmox }}"
+        validate_certs: false  # Отключить проверку сертификата Proxmox
+        vmid: 213
+        cores: 2
+        memory: 4096
+        nameservers: 
+            - "{{ dns_ipa }}"
+            - "{{ dns_mikrotik }}"
+        ipconfig:
+          ipconfig0: 'ip=10.10.10.23/24,gw=10.10.10.1'
+        update: true
+        #state: started
+

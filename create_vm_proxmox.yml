@@ -21,7 +21,7 @@
         proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
         vm_passwd: "{{ vault_proxmox.data.data.data.ansible_passwd }}"
         sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
-      no_log: true
+      #no_log: true
       tags: always
 
     - name: Create VM role

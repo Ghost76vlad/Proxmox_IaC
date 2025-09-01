@@ -1,5 +1,5 @@
 ---
-- name: Показывает vault_token из переменной окружения ОС
+- name: Extract vault_token from vault.yml
   hosts: localhost
   gather_facts: false
   tasks:

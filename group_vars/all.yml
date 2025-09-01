@@ -16,6 +16,7 @@ proxmox_secret: "{{ vault_proxmox.data.data.data.api_token_proxmox }}"
 proxmox_id: "{{ vault_proxmox.data.data.data.api_token_id }}"
 proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
 sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
+#vm_passwd: "{{ vault_proxmox.data.data.data.ansible_passwd }}"
 
 sshkey_work_pc: "{{ vault_sshkey.data.data.data.work_vm_key }}"
 remote_user: ansible
