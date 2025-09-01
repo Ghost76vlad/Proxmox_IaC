@@ -10,13 +10,13 @@
 # Команды для работы проектом
 
 # Основные переменные
-vm_name - Имя создаваемой VM
-vm_memory -Количество ОЗУ
-vm_core - Количество CPU
-vm_networks - IP и GW VM. Эти данные прописываются в CloudInit Proxmox. Оформляется в следующем виде: "IP/Сокращенная_маска,gw=IP_GW"
-disk_type - Тип диска  (unused[n], ide[n], sata[n], scsi[n] or virtio[n])
-vm_users - Имя пользователя в ОС. Создается через CloudInit. Поумолчанию создается пользователь ansible с паролем взятого из Vault-сервера
-vm_passwd - Пароль vm_users
+# vm_name - Имя создаваемой VM
+# vm_memory -Количество ОЗУ
+# vm_core - Количество CPU
+# vm_networks - IP и GW VM. Эти данные прописываются в CloudInit Proxmox. Оформляется в следующем виде: "IP/Сокращенная_маска,gw=IP_GW"
+# disk_type - Тип диска  (unused[n], ide[n], sata[n], scsi[n] or virtio[n])
+# vm_users - Имя пользователя в ОС. Создается через CloudInit. Поумолчанию создается пользователь ansible с паролем взятого из Vault-сервера
+# m_passwd - Пароль vm_users
 
 
 =========================
