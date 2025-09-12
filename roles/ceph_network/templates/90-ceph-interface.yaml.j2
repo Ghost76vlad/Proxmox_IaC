@@ -1,10 +1,10 @@
 network:
   version: 2
   ethernets:
-    {{ vm_interface }}:
+    {{ ceph_interface }}:
       addresses:
-        - {{ vm_ip }}/{{ vm_netmask }}
+        - {{ cluster_ip }}
       mtu: 9000
       routes:
-        - to: {{ cluster_networks }}/{{ vm_netmask }}
+        - to: {{ cluster_networks }}/{{ cluster_netmask }}
           via: {{ cluster_gateway }}

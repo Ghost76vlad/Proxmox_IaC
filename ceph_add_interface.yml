@@ -1,0 +1,41 @@
+---
+- name: Get secret from HashiCorp Vault and connect to Proxmox
+  hosts: all    
+  tasks:
+    # - name: Read secret from Vault
+    #   community.hashi_vault.vault_read:
+    #     url: "{{ vault_url }}"  # URL Vault-сервера
+    #     token: "{{ lookup('env', 'VAULT_TOKEN') }}"  # Берём токен из переменной окружения
+    #     path: "{{ vault_proxmox_path }}"    # Путь к секрету (KV v2)
+    #     validate_certs: false  # Отключить проверку сертификата (небезопасно!)
+    #   register: vault_proxmox
+    #   tags: always
+
+    # - name: Set facts from Vault
+    #   ansible.builtin.set_fact:
+    #     proxmox_ip: "{{ vault_proxmox.data.data.data.api_host }}"
+    #     proxmox_user: "{{ vault_proxmox.data.data.data.api_user }}"
+    #     proxmox_secret: "{{ vault_proxmox.data.data.data.api_token_proxmox }}"
+    #     proxmox_id: "{{ vault_proxmox.data.data.data.api_token_id }}"
+    #     proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
+    #     vm_passwd: "{{ vault_proxmox.data.data.data.ansible_passwd }}"
+    #     sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
+    #   #no_log: true
+    #   tags: always
+
+    # - name: Create combined list of VMs with their cluster IPs
+    #   ansible.builtin.set_fact:
+    #     vm_cluster_ips: "{{ vm_name | zip(cluster_ip) | map('combine') | list }}" # Группируем два списка в переменную vm_cluster_ips
+
+    # - name: Create combined list of VMs with their cluster IPs
+    #   ansible.builtin.set_fact:
+    #     vm_cluster_ips: "{{ vm_cluster_ips | default([]) + [{'vm_name': item.0, 'cluster_ip': item.1}] }}"
+    #   loop: "{{ vm_name | zip(cluster_ip) | list }}" # Преобразовываем кортежи в словари
+      
+    - name: Create network interface VM
+      import_role: 
+        name: ceph_network
+      vars:
+        vm: "{{ vm_id }}"
+  
+

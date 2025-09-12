@@ -1,6 +1,6 @@
 ---
 - name: Add ssh-key for user ansible
-  hosts: ipa_clients
+  hosts: ip_hosts
   tasks:
     - name: Read secret from Vault
       community.hashi_vault.vault_read:

@@ -2,11 +2,11 @@
 - hosts: all
   become: yes
   vars:
-   tuz_name: ceph  # ТУЗ в которую переключаются
+   tuz_name: docker  # ТУЗ в которую переключаются
    tuz_comment: TT666
    tuz_passwd: "$y$j9T$.XixcL/Wjm1qBmG8a/tyb1$fYJ5Tyi/Jm6xUjLl6lj1rPm7XT5iFXJ0yB/bKEycEB/"
    puz_name: root        # ПУЗ/LDAP_УЗ_пользователя       
-   crq_comment: CRQ335081    # № работ
+   crq_comment:     # № работ
 
   tasks:
 
@@ -27,5 +27,3 @@
       create: yes                           # Создает файл если его нет
       validate: /usr/sbin/visudo -cf %s     # Проверяет корректность записи в файле
     tags: sudo_users
-
-...

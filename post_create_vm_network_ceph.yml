@@ -1,50 +1,26 @@
 ---
 - name: Create Ceph network cluster
-  hosts: all
-  gather_facts: true
+  hosts: ip_hosts
+  #gather_facts: true
   become: true
 
-  vars:
-    cluster_ip: "{{ cluster_ip | default([]) }}"
-
-  tasks:
-    - name: Read secret from Vault
-      community.hashi_vault.vault_read:
-        url: "{{ vault_url }}"
-        token: "{{ lookup('env', 'VAULT_TOKEN') }}"
-        path: "{{ vault_proxmox_path }}"
-        validate_certs: false
-      register: vault_proxmox
-      tags: always
-
-    - name: Set facts from Vault
-      ansible.builtin.set_fact:
-        proxmox_ip: "{{ vault_proxmox.data.data.data.api_host }}"
-        proxmox_user: "{{ vault_proxmox.data.data.data.api_user }}"
-        proxmox_secret: "{{ vault_proxmox.data.data.data.api_token_proxmox }}"
-        proxmox_id: "{{ vault_proxmox.data.data.data.api_token_id }}"
-        proxmox_node: "{{ vault_proxmox.data.data.data.node }}"
-        vm_passwd: "{{ vault_proxmox.data.data.data.ansible_passwd }}"
-        sshkey_ansible: "{{ vault_proxmox.data.data.data.ssh_key_ansible }}"
-      no_log: true
-      tags: always
-     
-    - name: Validate cluster_ip variable
+  pre_tasks:
+    - name: Validate cluster_ip_list variable
       fail:
-        msg: "cluster_ip must be defined and have same number of elements as vm_name"
+        msg: "cluster_ip_list must be defined and have the same number of items as hosts"
       when: 
-        - cluster_ip is not defined or cluster_ip | length == 0
-        - cluster_ip | length != vm_name | length
-      tags: always
+        - cluster_ip_list is not defined or (cluster_ip_list | length) != (groups['ip_hosts'] | length)
 
-    - name: Create list of VM and IP pairs
-      ansible.builtin.set_fact:
-        vm_cluster_ips: "{{ vm_name | zip(cluster_ip) | list }}"
-      tags: always
-     
+    - name: Set cluster_ip for each host based on play order
+      set_fact:
+        cluster_ip: "{{ cluster_ip_list[groups['ip_hosts'].index(inventory_hostname)] }}"
+
+    - name: Display assigned cluster IP
+      debug:
+        msg: "Host {{ inventory_hostname }} got cluster IP: {{ cluster_ip }}"
+  tasks:
+
     - name: Import cheph_network role
       import_role: 
-        name: cheph_network 
-      vars:
-        cluster_ip: "{{ cluster_ip }}"
-        vm_cluster_ips: "{{ vm_cluster_ips }}"
+        name: ceph_network 
+      

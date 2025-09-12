@@ -5,7 +5,12 @@
 
 Все чувствительные данные забираются с сервера Vault
 Подключение к серверу Vault происходит через Токен который хранится в окружении ОС 
-
+Необходимые модули pip:
+  - pip install hvac
+  - pip install proxmoxer
+Коллекции:
+ansible-galaxy collection install community.proxmox
+ansible-galaxy collection install community.general 
 
 # Команды для работы проектом
 

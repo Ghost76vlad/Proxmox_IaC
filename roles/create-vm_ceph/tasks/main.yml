@@ -1,0 +1,88 @@
+- name: Check if VMs already exist
+  community.proxmox.proxmox_vm_info:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    type: qemu
+  register: existing_vms_all
+  changed_when: false
+
+- name: Extract existing VM names
+  set_fact:
+    existing_vm_names: "{{ existing_vms_all.proxmox_vms | map(attribute='name') | list }}"
+
+- name: Debug existing VM names
+  debug:
+    var: existing_vm_names
+  when: debug | default(false)
+
+- name: Create VM to Proxmox (only if not exists)
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    clone: "{{ template_ubuntu }}"
+    newid: "{{ vm_id | default(omit) }}"
+    full: true
+    description: "{{ description | default(omit) }}"
+    name: "{{ item.0 }}"
+    timeout: 300
+  loop: "{{ vm_name | zip(vm_networks) | list }}"
+  when: item.0 not in existing_vm_names
+  register: vm_creation_result
+
+
+- name: Update Cloud-init new VM
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item.0 }}"  # Убедитесь, что item.0 содержит правильное имя ВМ
+    cores: "{{ vm_core }}"
+    memory: "{{ vm_memory }}"
+    sshkeys: "{{ sshkey_ansible }}"
+    ciuser: "{{ vm_users }}"
+    cipassword: "{{ vm_passwd }}"
+    nameservers: 
+      - "{{ dns_ipa }}"
+      - "{{ dns_mikrotik }}"
+    ipconfig:
+      ipconfig0: 'ip={{ item.1 | default("vm_networks") }}'  # Убедитесь, что item.1 содержит правильный IP
+    update: true
+    onboot: true
+  loop: "{{ vm_name | zip(vm_networks) | list }}"
+
+- name: Create network interfaces for cluster_ceph in Proxmox
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    validate_certs: false
+    name: "{{ item }}"
+    net:
+      net1: "virtio,bridge=vmbr1,firewall=0"
+    update_unsafe: true
+    update: true
+  loop: "{{ vm_name }}"
+
+- name: Start VM (только если были изменения)
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_ip }}"
+    node: "{{ proxmox_node }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_id }}"
+    api_token_secret: "{{ proxmox_secret }}"
+    name: "{{ item }}"
+    state: started
+  loop: "{{ vm_name }}"

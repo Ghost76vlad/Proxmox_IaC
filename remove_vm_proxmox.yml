@@ -24,7 +24,7 @@
       tags: always
 
     - name: Stoped VM to Proxmox
-      community.general.proxmox_kvm:
+      community.proxmox.proxmox_kvm:
         api_host: "{{ proxmox_ip }}"
         node: "{{ proxmox_node }}"
         api_user: "{{ proxmox_user }}"
@@ -40,7 +40,7 @@
         seconds: 30
 
     - name: Destroy VM to Proxmox
-      community.general.proxmox_kvm:
+      community.proxmox.proxmox_kvm:
         api_host: "{{ proxmox_ip }}"
         node: "{{ proxmox_node }}"
         api_user: "{{ proxmox_user }}"

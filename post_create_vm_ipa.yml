@@ -1,6 +1,6 @@
 ---
 - name: Install IPA-client
-  hosts: ipa_clients
+  hosts: ip_hosts
   gather_facts: true
   become: true
   #strategy: free 
